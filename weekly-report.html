@@ -168,7 +168,9 @@
         <tbody></tbody>
       </table>
       <button class="row-btn" onclick="addDaily();saveAll()">+ 添加一行</button>
-      <p class="hint">星期根据日期自动计算；单元格可换行、自动增高。</p>
+      <button class="row-btn" onclick="el('dailyFile').click()" style="margin-left:6px">📥 导入表格</button>
+      <input type="file" id="dailyFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importTargeted(this,'daily')">
+      <p class="hint">星期根据日期自动计算；单元格可换行、自动增高。<br>支持导入 Excel/CSV：表头含「日期 / 完成的事情 / 耗时」即可自动识别，自动挑选最匹配的 sheet；若已填周期起止日期，则只保留当周记录。</p>
     </div>
 
     <div class="card">
@@ -178,7 +180,9 @@
         <tbody></tbody>
       </table>
       <button class="row-btn" onclick="addApply();saveAll()">+ 添加一行</button>
-      <p class="hint">状态：📧 已投递 / 🕐 待面试 / 📝 笔试进行中 / 📞 已面试 / ✅ Offer已获得 / ⏳ 等待中</p>
+      <button class="row-btn" onclick="el('applyFile').click()" style="margin-left:6px">📥 导入表格</button>
+      <input type="file" id="applyFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importTargeted(this,'apply')">
+      <p class="hint">状态：📧 已投递 / 🕐 待面试 / 📝 笔试进行中 / 📞 已面试 / ✅ Offer已获得 / ⏳ 等待中 / 📝 待投 / ❌ 已结束<br>支持导入 Excel/CSV：表头含「公司 / 岗位 / 状态 / 投递日期」即可自动识别，自动挑选最匹配的 sheet。</p>
     </div>
 
     <div class="card">
@@ -191,7 +195,7 @@
       <button class="row-btn" onclick="el('csvFile').click()" style="margin-left:6px">📥 导入（表格/台账/数据层）</button>
       <button class="row-btn" onclick="exportLedger()" style="margin-left:6px">📤 导出台账(.md)</button>
       <input type="file" id="csvFile" accept=".csv,.xlsx,.xls,.md,.js" style="display:none" onchange="importCsv()">
-      <p class="hint">支持导入：Excel/CSV 面试表（自动识别表头、按面试时间归并当周）；台账 <code>qiuzhao-ledger.md</code>（公司/岗位/状态/投递日）；作战地图数据 <code>qiuzhao-data.js</code>（目标公司与窗口，状态记为「📝 待投」）。导入按公司名去重，不会重复添加；「导出台账」可把本表回写成台账 Markdown。</p>
+      <p class="hint">支持导入：Excel/CSV 面试表（自动识别表头、<b>自动挑选最匹配的 sheet</b>、按面试时间归并当周）；台账 <code>qiuzhao-ledger.md</code>（公司/岗位/状态/投递日）；作战地图数据 <code>qiuzhao-data.js</code>（目标公司与窗口，状态记为「📝 待投」）。导入按公司名去重，不会重复添加；「导出台账」可把本表回写成台账 Markdown。</p>
     </div>
 
     <div class="card">
@@ -733,11 +737,25 @@ function loadDemo(){
 }
 
 /* ---------- 从 CSV 导入投递/面试信息 ---------- */
+function guessYear(){
+  const ds=el('dateStart').value;
+  if(ds && /^\d{4}/.test(ds)) return ds.slice(0,4);
+  return String(new Date().getFullYear());
+}
+/* 支持 10.4 / 10.6 / 9月15日 这类「月.日」短日期，年份取自起始日期 */
+function shortDate(s){
+  const m=String(s==null?'':s).trim().match(/^(\d{1,2})\s*[.\/月-]\s*(\d{1,2})\s*日?$/);
+  if(!m) return '';
+  const mm=+m[1], dd=+m[2];
+  if(mm<1||mm>12||dd<1||dd>31) return '';
+  return `${guessYear()}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+}
 function normDate(s){
   s=(s||'').trim(); if(!s) return '';
   s=s.split(/[ T]/)[0];
-  if(/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(s)) return s.replace(/\//g,'-');
+  if(/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(s)){ const p=s.split(/[/-]/); return `${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`; }
   if(/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(s)){ const p=s.split(/\/|-/); return `${p[2]}-${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}`; }
+  const sd=shortDate(s); if(sd) return sd;
   const n=Number(s);
   if(s && !isNaN(n) && n>20000 && n<80000){ const d=new Date((n-25569)*86400000); return d.toISOString().slice(0,10); }
   return s;
@@ -755,14 +773,15 @@ function normDateTime(s){
 function fmtDateTime(v){ return v && v.includes('T') ? v.replace('T',' ').slice(0,16) : v; }
 function mapStatus(s){
   if(!s) return '📧 已投递';
+  s=String(s);
   if(/offer|录用|录取|oc|🎉/i.test(s)) return '✅ Offer已获得';
-  if(s.includes('挂')||s.includes('❌')||s.includes('已结束')||s.includes('拒')) return '❌ 已结束';
-  if(s.includes('待投')) return '📝 待投';
-  if(s.includes('笔试')) return '📝 笔试进行中';
-  if(s.includes('HR')||s.includes('hr')) return '📞 已面试';
-  if(s.includes('待面试')) return '🕐 待面试';
-  if(s.includes('面试')) return '📞 已面试';
-  if(s.includes('等待')||s.includes('待定')||s.includes('待')) return '⏳ 等待中';
+  if(/挂|❌|已结束|拒|未通过/.test(s)) return '❌ 已结束';
+  if(/待投|未投|未开始/.test(s)) return '📝 待投';
+  if(/笔试|测评|考试/.test(s)) return '📝 笔试进行中';
+  if(/待安排|待发|待通知|等待安排|待面试|约面/.test(s)) return '🕐 待面试';
+  if(/hr/i.test(s)) return '📞 已面试';
+  if(/面试/.test(s)) return '📞 已面试';
+  if(/等待|待定|待/.test(s)) return '⏳ 等待中';
   return '📧 已投递';
 }
 function csvToRows(text){
@@ -798,56 +817,121 @@ function importCsv(){
     reader.readAsText(f,'UTF-8');
     return;
   }
+  readTable(f,'track',rows=>{ importSheet(rows,'track'); el('csvFile').value=''; });
+}
+/* ---------- 通用表格导入（三张表通用 / 自动挑 sheet） ---------- */
+const HEADER_NEEDS = {
+  daily: [['日期','时间'], ['完成','事情','事项','内容','任务','工作','产出'], ['耗时','时长','工时','小时','用时']],
+  apply: [['公司','企业','单位'], ['岗位','职位'], ['状态','进展'], ['投递日期','投递时间','日期']],
+  track: [['公司','企业'], ['岗位','职位'], ['面试时间','面试日期','投递日期','日期'], ['状态','进展']]
+};
+const TARGET_NAME = { daily:'每日行动记录', apply:'每日投递情况', track:'面试追踪表' };
+function bestSheet(wb, target){
+  const need=HEADER_NEEDS[target]||[]; let best=null, bestScore=-1, bestRows=-1;
+  wb.SheetNames.forEach(name=>{
+    const ws=wb.Sheets[name]; if(!ws) return;
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}).map(r=>r.map(c=>c==null?'':String(c)));
+    if(!rows.length) return;
+    const header=(rows[0]||[]).map(h=>(h||'').trim());
+    let score=0; need.forEach(keys=>{ if(header.some(h=>keys.some(k=>h.includes(k)))) score++; });
+    if(score>bestScore || (score===bestScore && rows.length>bestRows)){ bestScore=score; bestRows=rows.length; best=rows; }
+  });
+  return best;
+}
+/* 严格解析日期：解析不出就返回 ''（用于区分「真日期」与「文字描述」） */
+function parseDT(s){
+  s=String(s==null?'':s).trim(); if(!s) return '';
+  const n=Number(s);
+  if(s && !isNaN(n) && n>20000 && n<80000) return new Date((n-25569)*86400000).toISOString().slice(0,16);
+  const m=s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}T${(m[4]||'00').padStart(2,'0')}:${m[5]||'00'}`;
+  const sd=shortDate(s); if(sd) return sd+'T00:00';
+  return '';
+}
+function readTable(file, target, cb){
+  const lower=(file.name||'').toLowerCase();
+  const reader=new FileReader();
   if(lower.endsWith('.xlsx')||lower.endsWith('.xls')){
-    const reader=new FileReader();
     reader.onload=e=>{
       try{
         const wb=XLSX.read(e.target.result,{type:'array'});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}).map(r=>r.map(c=>c==null?'':String(c)));
-        importRows(rows);
+        const rows=bestSheet(wb,target);
+        if(!rows){ alert('未能从该 Excel 读取到数据，请确认表头包含「公司/岗位/状态/日期」等列。'); return; }
+        cb(rows);
       }catch(err){ alert('读取 Excel 失败：'+err.message); }
-      el('csvFile').value='';
     };
-    reader.readAsArrayBuffer(f);
+    reader.readAsArrayBuffer(file);
   } else {
-    const reader=new FileReader();
-    reader.onload=e=>{ importRows(csvToRows(e.target.result.replace(/^﻿/,''))); el('csvFile').value=''; };
-    reader.readAsText(f,'UTF-8');
+    reader.onload=e=>{ cb(csvToRows(String(e.target.result).replace(/^﻿/,''))); };
+    reader.readAsText(file,'UTF-8');
   }
 }
-function importRows(rows){
+function importTargeted(input, target){
+  const f=input.files && input.files[0]; if(!f) return;
+  readTable(f, target, rows=>{ importSheet(rows, target); input.value=''; });
+}
+function importSheet(rows, target){
   if(!rows || rows.length<2){ alert('文件中没有可导入的数据行'); return; }
+  const header=(rows[0]||[]).map(h=>(h||'').trim());
+  const find=keys=>{ for(let i=0;i<header.length;i++){ if(header[i] && keys.some(k=>header[i].includes(k))) return i; } return -1; };
+  let ci;
+  if(target==='daily'){
+    ci={ date:find(['日期','时间']), content:find(['完成','事情','事项','内容','任务','工作','产出']), hours:find(['耗时','时长','工时','小时','用时']) };
+    if(ci.content<0 && ci.date<0){ alert('未识别到「日期 / 完成的事情」等列，请检查表头。'); return; }
+  } else if(target==='apply'){
+    ci={ date:find(['投递日期','投递时间','日期']), company:find(['公司','企业','单位','名称']), pos:find(['岗位','职位','应聘岗位']), status:find(['状态','进展','当前状态','邀请状态']) };
+    if(ci.company<0 && ci.pos<0 && ci.date<0){ alert('未识别到「公司/岗位/日期」等列，请检查表头。'); return; }
+  } else {
+    ci={ company:find(['公司','企业','公司名称']), scale:find(['规模']), pos:find(['岗位','职位','应聘岗位']), status:find(['状态','进展','当前状态']), note:find(['备注','说明']) };
+    ci.date = find(['面试时间','面试日期']);
+    if(ci.date<0) ci.date = find(['投递日期','投递时间','日期']);
+    if(ci.company<0 && ci.date<0 && ci.pos<0){ alert('未识别到「公司/岗位/日期」等列，请检查表头。'); return; }
+  }
+  const cell=(r,i)=> i>=0 ? (r[i]||'').trim() : '';
+
   const ds=el('dateStart').value, de=el('dateEnd').value;
-  if(!ds || !de){ alert('请先在「基本信息」填写本周期的「起始日期」和「结束日期」，导入将只保留该日期范围内的记录。'); return; }
-  const ts=new Date(ds+'T00:00:00').getTime(), te=new Date(de+'T23:59:59').getTime();
-  const inRange=d=>{ if(!d) return false; const dd=d.includes('T') ? d : d+'T00:00:00'; const t=new Date(dd).getTime(); return !isNaN(t) && t>=ts && t<=te; };
-  const header=rows[0].map(h=>(h||'').trim());
-  const find=keys=>header.findIndex(h=>h && keys.some(k=>h.includes(k)));
-  const ci={
-    company:find(['公司','企业','公司名称']),
-    scale:find(['规模']),
-    pos:find(['岗位','职位','应聘岗位']),
-    status:find(['状态','进展']),
-    note:find(['备注','说明'])
-  };
-  ci.date = find(['面试时间','面试日期']);
-  if(ci.date<0) ci.date = find(['投递日期','日期','投递时间']);
-  if(ci.company<0 && ci.date<0 && ci.pos<0){ alert('未识别到「公司/岗位/日期」等列，请检查表头。'); return; }
-  let added=0, skipped=0;
-  for(let i=1;i<rows.length;i++){
-    const r=rows[i];
-    if(r.every(c=>!(c||'').trim())) continue;
-    const get=k=> ci[k]>=0 ? (r[ci[k]]||'').trim() : '';
-    const company=get('company'), date=get('date'), pos=get('pos');
-    if(!company && !date && !pos) continue;
-    const nd=normDateTime(date);
-    if(!inRange(nd)){ skipped++; continue; }
-    addTrack({ company, scale:get('scale'), pos, date:nd, status:mapStatus(get('status')), note:get('note') });
-    added++;
+  const filter=!!(ds&&de);
+  const ts=filter?new Date(ds+'T00:00:00').getTime():0;
+  const te=filter?new Date(de+'T23:59:59').getTime():Infinity;
+  const inRange=d=>{ if(!filter) return true; if(!d) return false; const dd=d.includes('T')?d:d+'T00:00:00'; const t=new Date(dd).getTime(); return !isNaN(t)&&t>=ts&&t<=te; };
+
+  let added=0, skipped=0, noDate=0;
+  const seen=existingCompanySet();
+  if(target==='daily'){
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i]; if(!r || r.every(c=>!(c||'').trim())) continue;
+      const content=cell(r,ci.content), d=normDate(cell(r,ci.date));
+      if(!content && !d) continue;
+      if(!inRange(d)){ skipped++; continue; }
+      addDaily({date:d, day:weekDay(d), content, hours:cell(r,ci.hours)});
+      added++;
+    }
+  } else if(target==='apply'){
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i]; if(!r || r.every(c=>!(c||'').trim())) continue;
+      const company=cell(r,ci.company), pos=cell(r,ci.pos);
+      if(!company && !pos) continue;
+      const d=normDate(cell(r,ci.date));
+      if(!inRange(d)){ skipped++; continue; }
+      addApply({date:d, day:weekDay(d), company, pos, status:mapStatus(cell(r,ci.status))});
+      added++;
+    }
+  } else {
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i]; if(!r || r.every(c=>!(c||'').trim())) continue;
+      const company=cell(r,ci.company), pos=cell(r,ci.pos), rawD=cell(r,ci.date);
+      if(!company && !rawD && !pos) continue;
+      const nd=parseDT(rawD);
+      if(!nd){ noDate++; }
+      else if(!inRange(nd)){ skipped++; continue; }
+      const ok=pushTrack(seen,{ company, scale:cell(r,ci.scale), pos, date:nd, status:mapStatus(cell(r,ci.status)), note:cell(r,ci.note) });
+      if(ok) added++; else skipped++;
+    }
   }
   refreshLinks(); saveAll(); growAll();
-  alert(`已导入 ${added} 条记录到「面试追踪表」（仅保留 ${ds} ~ ${de} 当周范围内，按面试时间归并）。\n另有 ${skipped} 条不在当周范围内已跳过。可在面试卡片中用「关联投递记录」带入公司规模。`);
+  const scope = filter ? `（仅保留 ${ds} ~ ${de} 当周范围内）` : `（未填周期起止日期，未按日期过滤）`;
+  const ndNote = noDate ? `\n其中 ${noDate} 条没有可识别的日期，已按「无日期」导入。` : '';
+  alert(`已导入 ${added} 条到「${TARGET_NAME[target]}」${scope}。\n另有 ${skipped} 条不在范围内或已存在（按公司去重）而跳过。${ndNote}`);
 }
 
 /* ---------- 从台账/作战地图数据导入（与 qiuzhao 系统打通） ---------- */
