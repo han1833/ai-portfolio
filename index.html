@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的 AI 作品集</title>
+<style>
+:root{--accent:#0969da;--ink:#1f2328;--muted:#57606a;--line:#d0d7de;--bg:#f6f8fa;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;}
+.hero{max-width:960px;margin:0 auto;padding:64px 24px 24px;text-align:center;}
+.hero h1{font-size:30px;margin:0 0 10px;font-weight:600;}
+.hero p{color:var(--muted);font-size:16px;margin:0;}
+.grid{max-width:960px;margin:24px auto 64px;padding:0 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;transition:.15s;display:flex;flex-direction:column;text-decoration:none;color:inherit;}
+.card:hover{border-color:var(--accent);box-shadow:0 6px 20px rgba(9,105,218,.10);transform:translateY(-2px);}
+.tag{display:inline-block;font-size:12px;color:var(--accent);background:#ddf4ff;border-radius:999px;padding:2px 10px;width:fit-content;margin-bottom:12px;}
+.card h2{margin:0 0 8px;font-size:20px;}
+.card p{color:var(--muted);font-size:14px;flex:1;margin:0 0 16px;}
+.btn{display:inline-block;text-decoration:none;background:var(--accent);color:#fff;text-align:center;padding:10px 16px;border-radius:9px;font-size:14px;font-weight:500;}
+.foot{max-width:960px;margin:0 auto 40px;padding:0 24px;color:var(--muted);font-size:12px;text-align:center;}
+</style>
+</head>
+<body>
+<section class="hero">
+<h1>我的 AI 作品集</h1>
+<p>以下作品均可在浏览器中直接打开使用，无需安装。点击卡片即可体验。</p>
+</section>
+<main class="grid">
+<a class="card" href="feedback.html">
+<span class="tag">交互式应用</span>
+<h2>玩家反馈分析助手 V3.0.9</h2>
+<p>面向游戏运营的 AI 反馈分析工具，打开即可粘贴玩家反馈、生成结构化洞察。纯前端，数据不出本地。</p>
+<span class="btn">打开使用 →</span>
+</a>
+<a class="card" href="weekly-report.html">
+<span class="tag">模板 / 文档</span>
+<h2>求职周报系统 V2.1</h2>
+<p>产品经理求职周报模板系统，结构化记录每日行动、投递与进度，每周 5 分钟填写。</p>
+<span class="btn">查看 →</span>
+</a>
+</main>
+<div class="foot">由 WorkBuddy 生成 · 托管于 GitHub Pages</div>
+</body>
+</html>
